@@ -502,9 +502,6 @@ msgstr ""
 msgid "250 Accelerated rounds"
 msgstr ""
 
-msgid "299 Abnormal assignment points"
-msgstr ""
-
 #, python-format
 msgid "3/5 of %(n)s opponents"
 msgstr ""
@@ -1362,9 +1359,6 @@ msgid "Boards screens show pairings by board number."
 msgstr ""
 
 msgid "Bolivia"
-msgstr ""
-
-msgid "Bonus / penalty"
 msgstr ""
 
 msgid "Bonus / penalty points"
@@ -2813,9 +2807,6 @@ msgid "Edit Player"
 msgstr ""
 
 msgid "Edit account"
-msgstr ""
-
-msgid "Edit bonus / penalty"
 msgstr ""
 
 msgid "Edit criterion"
@@ -5954,6 +5945,9 @@ msgstr ""
 
 msgid "Point attribution"
 msgstr ""
+
+msgid "Points"
+msgstr "Points"
 
 #, python-format
 msgid "Points: %(min)s or more"

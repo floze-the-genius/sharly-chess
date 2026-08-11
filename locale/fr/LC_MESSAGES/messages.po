@@ -502,9 +502,6 @@ msgstr "212 Départages avec PTS pas en première position"
 msgid "250 Accelerated rounds"
 msgstr "250 Rondes accélérées"
 
-msgid "299 Abnormal assignment points"
-msgstr "299 Attribution de points anormaux"
-
 #, python-format
 msgid "3/5 of %(n)s opponents"
 msgstr "3/5 de %(n)s adversaires"
@@ -1363,9 +1360,6 @@ msgstr "Les écrans d'affichage des échiquiers présentent les appariements par
 
 msgid "Bolivia"
 msgstr "Bolivie"
-
-msgid "Bonus / penalty"
-msgstr "Bonus / pénalité"
 
 msgid "Bonus / penalty points"
 msgstr "Points de bonus/pénalité"
@@ -2814,9 +2808,6 @@ msgstr "Modifier joueur·euse"
 
 msgid "Edit account"
 msgstr "Modifier le compte"
-
-msgid "Edit bonus / penalty"
-msgstr "Modifier bonus / pénalité"
 
 msgid "Edit criterion"
 msgstr "Modifier le critère"
@@ -5956,6 +5947,9 @@ msgstr "Plug-ins"
 
 msgid "Point attribution"
 msgstr "Attribution des points"
+
+msgid "Points"
+msgstr "Points"
 
 #, python-format
 msgid "Points: %(min)s or more"

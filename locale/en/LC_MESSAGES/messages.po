@@ -487,10 +487,11 @@ msgstr ""
 msgid "202 and 212 tie-breaks (212 used)"
 msgstr ""
 
-msgid "212 Tie-breaks with PTS not used first"
+msgid "250 Accelerated rounds"
 msgstr ""
 
-msgid "250 Accelerated rounds"
+#, python-brace-format
+msgid "250 Accelerated rounds (enable the [{plugin}] plugin to import them)"
 msgstr ""
 
 #, python-format
@@ -5015,7 +5016,7 @@ msgstr ""
 msgid "No teams in this tournament."
 msgstr ""
 
-msgid "No tie-breaks."
+msgid "No tie-breaks defined other than points."
 msgstr ""
 
 msgid "No timers"
@@ -5985,7 +5986,7 @@ msgid "Point attribution"
 msgstr ""
 
 msgid "Points"
-msgstr "Points"
+msgstr ""
 
 #, python-format
 msgid "Points: %(min)s or more"
@@ -6009,6 +6010,9 @@ msgid "Positive values are expected."
 msgstr ""
 
 msgid "Pref."
+msgstr ""
+
+msgid "Prepare the settings of the pairing system."
 msgstr ""
 
 msgid "Present"
@@ -7707,6 +7711,12 @@ msgstr ""
 msgid "The player has already been paired, removing them from the tournament is impossible."
 msgstr ""
 
+msgid "The points are not among the ranking criteria."
+msgstr ""
+
+msgid "The points scored in the tournament (the primary score for teams). Placed first it ranks the standings as usual; placed lower, the criteria above it outrank the score."
+msgstr ""
+
 msgid "The prohibited pairings cannot be satisfied for this round."
 msgstr ""
 
@@ -7773,6 +7783,9 @@ msgstr ""
 msgid "The screens displayed by the display controller are controlled by the screen managers."
 msgstr ""
 
+msgid "The settings are set and can no longer be changed."
+msgstr ""
+
 #, python-brace-format
 msgid "The sum of the [{tie_break}] scores of the opponents played over the board."
 msgstr ""
@@ -7818,6 +7831,9 @@ msgid "The tournament has not yet started."
 msgstr ""
 
 msgid "The tournament is finished."
+msgstr ""
+
+msgid "The tournament must keep at least one ranking criterion."
 msgstr ""
 
 msgid "The tournament of the screens of the multi-screen."
@@ -7894,6 +7910,9 @@ msgid "These sets are saved per pairing system and shared across events."
 msgstr ""
 
 msgid "These sets are shared by every event of this installation."
+msgstr ""
+
+msgid "These settings are part of the pairings already made and can no longer be changed."
 msgstr ""
 
 msgid "These tags are shared by every event of this installation."

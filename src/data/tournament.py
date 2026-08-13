@@ -773,9 +773,11 @@ class Tournament:
                 entry['gp'] += gp_adj
 
     def team_standings(self, *, after_round: int | None = None) -> list[dict[str, Any]]:
-        """Compute team standings for this tournament, sorted by
-        primary_score then the configured tie-breaks — the secondary score
-        is not implicit, see :func:`base_key` below.
+        """Compute team standings for this tournament, sorted by the
+        configured ranking criteria in order. The primary score is one of
+        them — the Points tie-break — rather than an implicit first key,
+        so that its position can be chosen; the secondary score is opted
+        into with MPvGP. See :func:`base_key` below.
         Each entry: {team, mp, gp, played, wins, draws, losses, rank}.
 
         ``after_round`` bounds which rounds count: only matches up to
@@ -950,18 +952,17 @@ class Tournament:
                     ent_b['draws'] += 1
         self._apply_point_adjustments_to_standings(standings, after_round)
         rows = list(standings.values())
-        primary = self.primary_score
-
-        def score_value(entry: dict[str, Any], score_type: ScoreType) -> float:
-            if score_type == ScoreType.MATCH_POINTS:
-                return float(entry['mp'])
-            return float(entry['gp'])
 
         def base_key(entry: dict[str, Any]) -> tuple[float, ...]:
-            """Primary score is the only mandatory ranking key (FIDE
-            C.07 §11 / AF §12). Secondary is *not* implicit — users
-            opt into it by adding the MPvGP tie-break."""
-            return (-score_value(entry, primary),)
+            """Nothing ranks ahead of the configured criteria.
+
+            The primary score is one of them — the Points tie-break —
+            rather than an implicit prefix, so that its position can be
+            chosen (TRF26 record 212). The secondary score has never been
+            implicit either: it is opted into with MPvGP. A tournament
+            whose list holds neither ranks on its tie-breaks alone.
+            """
+            return ()
 
         for row in rows:
             row['tie_break_values'] = []
@@ -1840,11 +1841,91 @@ class Tournament:
 
     @property
     def tie_breaks(self) -> list[TieBreak]:
+        """The ranking criteria, in order.
+
+        A tournament that has none falls back to the points alone: the
+        criteria decide the standings outright — the score is one of them
+        rather than an implicit first key — so an empty list would
+        otherwise rank nobody. Removing the Points tie-break from a list
+        that holds others is a deliberate act and is honoured.
+        """
         invalid_tie_break_ids = self.tie_breaks_invalid_messages.keys()
-        return [
+        configured = [
             tie_break
             for stored_id, tie_break in self.tie_breaks_by_id.items()
             if stored_id not in invalid_tie_break_ids
+        ]
+        return configured or self._default_tie_breaks
+
+    @cached_property
+    def _default_tie_breaks(self) -> list[TieBreak]:
+        """Cached so the instance outlives the call: a
+        :class:`TieBreakValue` keeps only a weak reference to its
+        tie-break, so a freshly built one would be collected at once."""
+        from data.tie_breaks.tie_breaks import PointsTieBreak
+
+        return [PointsTieBreak()]
+
+    @property
+    def leads_on_points(self) -> bool:
+        """Whether the standings rank on the points before anything else
+        — the usual layout, and the only one Papi can express."""
+        from data.tie_breaks.tie_breaks import PointsTieBreak
+
+        tie_breaks = self.tie_breaks
+        return bool(tie_breaks) and isinstance(tie_breaks[0], PointsTieBreak)
+
+    @property
+    def ranks_on_points(self) -> bool:
+        """Whether the points are among the ranking criteria at all.
+
+        They need not come first — another criterion may outrank them —
+        but leaving them out altogether ranks the field on tie-breaks
+        alone, which is almost never intended.
+        """
+        from data.tie_breaks.tie_breaks import PointsTieBreak
+
+        return any(
+            isinstance(tie_break, PointsTieBreak) for tie_break in self.tie_breaks
+        )
+
+    @property
+    def only_ranks_on_points(self) -> bool:
+        """Whether nothing has been chosen to break ties — the standings
+        rank on the score and stop there. The state a tournament starts
+        in, and the one a tie-break set may be applied to."""
+        return len(self.tie_breaks_by_id) == 0 or (
+            len(self.tie_breaks_by_id) == 1 and self.leads_on_points
+        )
+
+    def tie_break_acronym(self, tie_break: TieBreak) -> str:
+        """The label for a criterion's column in the standings.
+
+        The Points tie-break stands for the primary score, which in a
+        team tournament is either the match points or the game points —
+        the column says which rather than showing a generic label.
+        """
+        from data.tie_breaks.tie_breaks import PointsTieBreak
+
+        if isinstance(tie_break, PointsTieBreak) and self.is_team_tournament:
+            if self.primary_score == ScoreType.MATCH_POINTS:
+                return _('MP *** TEAM RANKING HEADER MATCH POINTS')
+            return _('GP *** TEAM RANKING HEADER GAME POINTS')
+        return tie_break.acronym
+
+    @property
+    def leading_tie_break(self) -> TieBreak:
+        """The criterion the standings rank on first — the points in the
+        usual layout. Prize categories that rank by final standing are
+        decided on it, so it is what they display."""
+        return self.tie_breaks[0]
+
+    @property
+    def team_tie_breaks(self) -> list[TieBreak]:
+        """The ranking criteria that yield a per-team value — the list
+        :meth:`team_standings` computes values for, in the same order."""
+        return [
+            tie_break for tie_break in self.tie_breaks if tie_break.supports_team_mode
         ]
 
     @property
@@ -1964,6 +2045,13 @@ class Tournament:
         if tie_break_id not in self.tie_breaks_by_id:
             raise ValueError(
                 f'Tie-break [{tie_break_id}] not part of tournament [{self.name}].'
+            )
+        if len(self.tie_breaks_by_id) == 1:
+            # The standings rank on the criteria listed and nothing else,
+            # so the last one cannot go — there would be nothing to rank on.
+            raise ValueError(
+                f'Tie-break [{tie_break_id}] is the only ranking criterion '
+                f'of tournament [{self.name}].'
             )
         with EventDatabase(self.event.uniq_id, True) as database:
             if self.tie_breaks_by_id[tie_break_id].is_manual:
@@ -2359,7 +2447,7 @@ class Tournament:
     def print_real_points(self, round_: int | None = None) -> bool:
         if round_ is None:
             round_ = self.current_round
-        return self.pairing_variation.print_real_points(round_, self.rounds)
+        return self.pairing_variation.print_real_points(self, round_)
 
     @cached_property
     def point_values(self) -> dict[Result, float]:
@@ -2900,7 +2988,7 @@ class Tournament:
         self,
         after_round: int | None = None,
         next_round_pairings_as_zpb: bool = False,
-        prohibited_pairing_override: "list['TrfProhibitedPairing'] | None" = None,
+        prohibited_pairing_override: list['TrfProhibitedPairing'] | None = None,
     ) -> 'TrfTournament':
         from data.input_output.trf.trf_data import TRF_DATE_FORMAT, TrfTournament
 
@@ -2934,8 +3022,12 @@ class Tournament:
             starting_rank_federation=self.event.federation or '',
             pairing_controller_id='Sharly Chess',
             encoded_type=self.pairing_variation.trf_encoded_type,
-            standings_tie_breaks=['PTS']
-            + [tie_break.trf_acronym for tie_break in self.tie_breaks],
+            # Record 212 is the ordered list of criteria that define the
+            # standings, PTS included — no longer prefixed here, since the
+            # Points tie-break carries its own place in the list.
+            standings_tie_breaks=[
+                tie_break.trf_acronym for tie_break in self.tie_breaks
+            ],
             time_control=self.time_control_trf25 or '',
             players=[
                 player.to_trf(after_round, next_round_pairings_as_zpb)
@@ -3848,21 +3940,34 @@ class Tournament:
         if not variation.include_accelerated_rules_in_trf:
             return []
         rounds = self.rounds
-        acceleration_rules = variation.get_tournament_accelerated_rules(
-            rounds, self.draw_points, self.win_points
-        )
+        acceleration_rules = variation.get_tournament_accelerated_rules(self)
         tpn_range_by_group = variation.get_acceleration_number_range_by_group(self)
-        accelerated_rounds: list[TrfAcceleratedRound] = []
+        accelerated_rounds: list[TrfAcceleratedRound] = [
+            TrfAcceleratedRound(
+                match_points=None,
+                game_points=rule.vpoints,
+                first_round=rule.resolved_round_range(self)[0],
+                last_round=rule.resolved_round_range(self)[1],
+                first_id=number_range[0],
+                last_id=number_range[1],
+            )
+            for rule in acceleration_rules
+            if (number_range := rule.resolved_number_range(self)) is not None
+        ]
         players_by_tpn = self.tournament_players_by_pairing_number
         for group, (min_tpn, max_tpn) in tpn_range_by_group.items():
-            group_rules = [rule for rule in acceleration_rules if rule.group == group]
+            group_rules = [
+                rule
+                for rule in acceleration_rules
+                if rule.number_range is None and rule.group == group
+            ]
             if not any(rule.points_threshold for rule in group_rules):
                 accelerated_rounds += [
                     TrfAcceleratedRound(
                         match_points=None,
                         game_points=rule.vpoints,
-                        first_round=rule.first_round,
-                        last_round=rule.last_round,
+                        first_round=rule.resolved_round_range(self)[0],
+                        last_round=rule.resolved_round_range(self)[1],
                         first_id=min_tpn,
                         last_id=max_tpn,
                     )
@@ -4219,9 +4324,15 @@ class Tournament:
             else:
                 current_tournament_players.append(tournament_player)
                 current_pairing_numbers.add(tournament_player.pairing_number)
-        deleted_pairing_numbers = set(range(1, self.player_count + 1)).difference(
-            current_pairing_numbers
-        )
+        # Holes in the numbering, i.e. numbers that were attributed and
+        # since freed. Counted over the players that *have* a number, not
+        # the whole field: a player still waiting for one has never held
+        # a number, so counting them would report the numbers about to be
+        # handed out as deleted — and on the first pairing, where nobody
+        # is numbered yet, that means all of them.
+        deleted_pairing_numbers = set(
+            range(1, len(current_tournament_players) + 1)
+        ).difference(current_pairing_numbers)
         settings_updated = (
             self.pairing_variation.update_settings_from_deleted_pairing_numbers(
                 self, deleted_pairing_numbers
@@ -4244,6 +4355,13 @@ class Tournament:
             sorted_tournament_players = sorted(
                 current_tournament_players, key=attrgetter('starting_rank_sort_key')
             )
+        # Handing out the numbers for the first time is not an insertion:
+        # nobody is being slotted into an existing order, so the pairing
+        # settings that address numbers (acceleration rules) must not be
+        # shifted — they were written against the numbering about to be
+        # created. Shifting them once per player would march a rule for
+        # numbers 1-2 clear off the end of the field.
+        numbers_already_attributed = bool(current_tournament_players)
         for tournament_player in inserted_tournament_players:
             tournament_player_index = next(
                 (
@@ -4255,11 +4373,12 @@ class Tournament:
                 len(sorted_tournament_players),
             )
             sorted_tournament_players.insert(tournament_player_index, tournament_player)
-            settings_updated |= (
-                self.pairing_variation.update_settings_from_added_pairing_number(
-                    self, tournament_player_index + 1
+            if numbers_already_attributed:
+                settings_updated |= (
+                    self.pairing_variation.update_settings_from_added_pairing_number(
+                        self, tournament_player_index + 1
+                    )
                 )
-            )
 
         tournament_players_by_updated_pairing_number = {
             pairing_number: player

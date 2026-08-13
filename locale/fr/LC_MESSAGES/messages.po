@@ -3896,6 +3896,7 @@ msgstr "Valeur invalide."
 msgid "Invalid year of birth (expected: {min} - {max})."
 msgstr "Date de naissance invalide (attendue : {min} - {max})"
 
+#, python-brace-format
 msgid "Invalid {rating_type} rating [{rating}] (expected in range [{min}-{max}])."
 msgstr "Classement {rating_type} [{rating}] invalide (attendu dans la plage [{min}-{max}])."
 
@@ -7764,6 +7765,9 @@ msgstr "Le nombre de rondes est incompatible avec le nombre de joueur·euses (at
 #, python-brace-format
 msgid "The round count is incompatible with the number of teams (expected: {expected})."
 msgstr "Le nombre de rondes est incompatible avec le nombre d'équipes (attendu : {expected})."
+
+msgid "The round must be paired first."
+msgstr "La ronde doit d'abord être appariée."
 
 msgid "The rule set fixes the team sort order."
 msgstr "Le jeu de règles fixe l'ordre de tri des équipes."
